@@ -115,6 +115,8 @@ function ProjectsPage() {
   */
 
   const handleProjectClick = (projectId: string) => {
+
+    console.log("clicked on prject")
     router.push(`/projects/${projectId}`);
   };
 
