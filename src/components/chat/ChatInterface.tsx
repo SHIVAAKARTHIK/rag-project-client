@@ -5,6 +5,13 @@ import { ChatInput } from "./ChatInput";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { MessageSquare, Plus } from "lucide-react";
 
+interface Citation {
+  chunk_id: string;
+  document_id: string;
+  filename: string;
+  page: number;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -12,10 +19,7 @@ interface Message {
   created_at: string;
   chat_id: string;
   clerk_id: string;
-  citations?: Array<{
-    filename: string;
-    page: number;
-  }>;
+  citations?: Citation[];
 }
 
 interface Chat {
@@ -39,6 +43,7 @@ interface ChatInterfaceProps {
   isStreaming?: boolean;
   agentStatus?: string;
   onFeedback?: (messageId: string, type: "like" | "dislike") => void;
+  onCitationClick?: (citation: Citation) => void;
 }
 
 export function ChatInterface({
@@ -53,6 +58,7 @@ export function ChatInterface({
   isStreaming,
   agentStatus,
   onFeedback,
+  onCitationClick,
 }: ChatInterfaceProps) {
   const handleSendMessage = async (content: string) => {
     await onSendMessage(content);
@@ -96,6 +102,7 @@ export function ChatInterface({
               isStreaming={isStreaming}
               agentStatus={agentStatus}
               onFeedback={onFeedback}
+              onCitationClick={onCitationClick}
             />
             <ChatInput
               onSendMessage={handleSendMessage}

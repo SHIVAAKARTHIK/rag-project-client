@@ -44,6 +44,7 @@ export interface Project {
     reranking_enabled: boolean;
     reranking_model: string;
     vector_weight: number;
+    llm_provider: "openai" | "ollama";
     keyword_weight: number;
     created_at: string;
   }
@@ -63,4 +64,19 @@ export interface Project {
     processing_details: any;
   }
   
-  
+  export interface Citation {
+  chunk_id: string;
+  document_id: string;
+  filename: string;
+  page: number;
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  role: "user" | "assistant";
+  created_at: string;
+  chat_id: string;
+  clerk_id: string;
+  citations?: Citation[];
+}

@@ -14,6 +14,8 @@ import {
   Loader2,
   Trash2,
   Info,
+  Cpu,
+  Cloud,
 } from "lucide-react";
 import { ProjectSettings, ProjectDocument } from "@/lib/types";
 import { JSX, useState } from "react";
@@ -46,10 +48,6 @@ const RERANKING_MODELS = [
   { value: "rerank-english-v3.0", label: "rerank-english-v3.0" },
 ];
 
-const EMBEDDING_MODELS = [
-  { value: "text-embedding-3-large", label: "text-embedding-3-large" },
-];
-
 const AGENT_MODE_OPTIONS = [
   {
     value: "simple",
@@ -60,6 +58,25 @@ const AGENT_MODE_OPTIONS = [
     value: "agentic",
     label: "Agentic RAG",
     description: "Smart tool selection with web search",
+  },
+];
+
+const LLM_PROVIDER_OPTIONS = [
+  {
+    value: "openai",
+    label: "OpenAI",
+    model: "gpt-4o-mini",
+    embeddingModel: "text-embedding-3-large",
+    description: "Fast & cost-effective",
+    icon: Cloud,
+  },
+  {
+    value: "ollama",
+    label: "Ollama (Local)",
+    model: "qwen2.5:7b",
+    embeddingModel: "nomic-embed-text",
+    description: "Private & free",
+    icon: Cpu,
   },
 ];
 
@@ -302,8 +319,11 @@ export function KnowledgeBaseSidebar({
       ? projectSettings.number_of_queries * 200
       : 0;
     const rerankingLatency = projectSettings.reranking_enabled ? 200 : 0;
+    
+    // Add latency for local models (Ollama is slower)
+    const providerLatency = (projectSettings.llm_provider || "openai") === "ollama" ? 500 : 0;
 
-    const latency = baseLatency + queryLatency + rerankingLatency;
+    const latency = baseLatency + queryLatency + rerankingLatency + providerLatency;
 
     return { totalChunks, latency };
   };
@@ -311,6 +331,11 @@ export function KnowledgeBaseSidebar({
   const isMultiQuery = projectSettings?.rag_strategy?.includes("multi-query");
   const isHybrid = projectSettings?.rag_strategy?.includes("hybrid");
   const isEmbeddingLocked = projectDocuments.length > 0;
+
+  // Get current provider and its embedding model
+  const currentProvider = LLM_PROVIDER_OPTIONS.find(
+    (p) => p.value === (projectSettings?.llm_provider || "openai")
+  ) || LLM_PROVIDER_OPTIONS[0];
 
   return (
     <div className="w-80 bg-[#1a1a1a] border border-gray-700 h-full flex flex-col rounded-xl">
@@ -560,7 +585,81 @@ export function KnowledgeBaseSidebar({
                   settingsLoading ? "opacity-50 pointer-events-none" : ""
                 }`}
               >
-                {/* Embedding Model */}
+                {/* LLM Provider Section */}
+                <section className="space-y-4">
+                  <h3 className="text-sm font-medium text-gray-200">
+                    LLM Provider
+                  </h3>
+                  <div className="space-y-2">
+                    {LLM_PROVIDER_OPTIONS.map((provider) => (
+                      <label
+                        key={provider.value}
+                        className={`block p-3 rounded-lg border cursor-pointer transition-colors ${
+                          (projectSettings.llm_provider || "openai") === provider.value
+                            ? "border-gray-600 bg-[#252525]"
+                            : "border-gray-800 bg-[#202020] hover:border-gray-700"
+                        } ${isEmbeddingLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="llmProvider"
+                            value={provider.value}
+                            checked={
+                              (projectSettings.llm_provider || "openai") === provider.value
+                            }
+                            onChange={(e) => {
+                              // Update both provider and embedding model together
+                              const selectedProvider = LLM_PROVIDER_OPTIONS.find(
+                                (p) => p.value === e.target.value
+                              );
+                              if (selectedProvider) {
+                                onUpdateSettings({
+                                  llm_provider: e.target.value,
+                                  embedding_model: selectedProvider.embeddingModel,
+                                });
+                              }
+                            }}
+                            disabled={settingsLoading || isEmbeddingLocked}
+                            className="w-4 h-4 text-gray-400 bg-transparent border-gray-500 focus:ring-0"
+                          />
+                          <div className="w-8 h-8 bg-[#303030] border border-gray-700 rounded-md flex items-center justify-center">
+                            <provider.icon size={16} className="text-gray-400" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-200">
+                                {provider.label}
+                              </span>
+                              <span className="text-xs text-gray-500 bg-[#303030] px-1.5 py-0.5 rounded">
+                                {provider.model}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              {provider.description}
+                            </div>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {(projectSettings.llm_provider || "openai") === "ollama" && (
+                    <p className="text-xs text-amber-400/60 flex items-center gap-1">
+                      <Info size={10} />
+                      Requires Ollama running locally
+                    </p>
+                  )}
+                  {isEmbeddingLocked && (
+                    <p className="text-xs text-amber-400/60 flex items-center gap-1">
+                      <Info size={10} />
+                      Provider locked (documents uploaded)
+                    </p>
+                  )}
+                </section>
+
+                <hr className="border-gray-800" />
+
+                {/* Embedding Model - Now shows based on provider */}
                 <section className="space-y-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-medium text-gray-200">
@@ -571,30 +670,24 @@ export function KnowledgeBaseSidebar({
                       title={
                         isEmbeddingLocked
                           ? "Locked (documents uploaded)"
-                          : "Locked after first document upload"
+                          : "Auto-selected based on provider"
                       }
                     >
                       <Info size={8} className="text-amber-400" />
                     </div>
                   </div>
-                  <select
-                    value={projectSettings.embedding_model}
-                    onChange={(e) =>
-                      onUpdateSettings({ embedding_model: e.target.value })
-                    }
-                    disabled={isEmbeddingLocked || settingsLoading}
-                    className="w-full p-3 bg-[#252525] border border-gray-700 rounded-lg focus:outline-none focus:border-gray-600 text-sm text-gray-100 disabled:opacity-50 transition-colors"
-                  >
-                    {EMBEDDING_MODELS.map((model) => (
-                      <option key={model.value} value={model.value}>
-                        {model.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-amber-400/60">
+                  <div className="p-3 bg-[#252525] border border-gray-700 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <currentProvider.icon size={14} className="text-gray-400" />
+                      <span className="text-sm text-gray-100">
+                        {currentProvider.embeddingModel}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
                     {isEmbeddingLocked
                       ? "Locked (documents uploaded)"
-                      : "Locked after first document upload"}
+                      : "Auto-selected based on LLM provider"}
                   </p>
                 </section>
 
@@ -851,6 +944,13 @@ export function KnowledgeBaseSidebar({
                         <div className="text-xs text-gray-400">Latency</div>
                       </div>
                     </div>
+                    {(projectSettings.llm_provider || "openai") === "ollama" && (
+                      <div className="mt-3 pt-3 border-t border-gray-700 text-center">
+                        <span className="text-xs text-amber-400/60">
+                          Local inference adds ~500ms latency
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </section>
 

@@ -3,12 +3,32 @@
 import { use, useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import { CitationModal } from "@/components/chat/CitationModal";
 import { ChatWithMessages, Message } from "@/lib/types";
 import { apiClient } from "@/lib/api";
 import { MessageFeedbackModal } from "@/components/chat/MessageFeedbackModel";
 import toast from "react-hot-toast";
 import { NotFound } from "@/components/ui/NotFound";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+
+interface Citation {
+  chunk_id: string;
+  document_id: string;
+  filename: string;
+  page: number;
+}
+
+interface ChunkDetails {
+  id: string;
+  document_id: string;
+  content: string;
+  chunk_index: number;
+  page_number: number;
+  char_count: number;
+  type: string[];
+  original_content: { text?: string } | null;
+  filename: string;
+}
 
 interface ProjectChatPageProps {
   params: Promise<{
@@ -33,7 +53,47 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
     type: "like" | "dislike";
   } | null>(null);
 
+  // Citation modal state
+  const [citationModal, setCitationModal] = useState<{
+    isOpen: boolean;
+    chunkId: string | null;
+    filename: string;
+    page: number;
+  }>({
+    isOpen: false,
+    chunkId: null,
+    filename: "",
+    page: 0,
+  });
+
   const { getToken, userId } = useAuth();
+
+  // Handle citation click
+  const handleCitationClick = (citation: Citation) => {
+    setCitationModal({
+      isOpen: true,
+      chunkId: citation.chunk_id,
+      filename: citation.filename,
+      page: citation.page,
+    });
+  };
+
+  // Fetch chunk details
+  const fetchChunkDetails = async (chunkId: string): Promise<ChunkDetails> => {
+    const token = await getToken();
+    const response = await apiClient.get(`/api/chunks/${chunkId}`, token);
+    return response;
+  };
+
+  // Close citation modal
+  const handleCloseCitationModal = () => {
+    setCitationModal({
+      isOpen: false,
+      chunkId: null,
+      filename: "",
+      page: 0,
+    });
+  };
 
   // Send message function
   const handleSendMessage = async (content: string) => {
@@ -181,17 +241,29 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
         projectId={projectId}
         onSendMessage={handleSendMessage}
         onFeedback={handleFeedbackOpen}
+        onCitationClick={handleCitationClick}
         isLoading={isMessageSending}
         error={sendMessageError}
         onDismissError={() => setSendMessageError(null)}
       />
+      
+      {/* Feedback Modal */}
       <MessageFeedbackModal
         isOpen={!!feedbackModal}
         feedbackType={feedbackModal?.type}
         onSubmit={handleFeedbackSubmit}
         onClose={() => setFeedbackModal(null)}
       />
+
+      {/* Citation Modal */}
+      <CitationModal
+        isOpen={citationModal.isOpen}
+        onClose={handleCloseCitationModal}
+        chunkId={citationModal.chunkId}
+        filename={citationModal.filename}
+        page={citationModal.page}
+        onFetchChunk={fetchChunkDetails}
+      />
     </>
   );
 }
-

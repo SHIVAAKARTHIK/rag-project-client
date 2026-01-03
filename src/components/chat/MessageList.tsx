@@ -2,6 +2,13 @@ import { useEffect, useRef } from "react";
 import { MessageItem } from "./MessageItem";
 import { FileText, Loader2 } from "lucide-react";
 
+interface Citation {
+  chunk_id: string;
+  document_id: string;
+  filename: string;
+  page: number;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -9,10 +16,7 @@ interface Message {
   created_at: string;
   chat_id: string;
   clerk_id: string;
-  citations?: Array<{
-    filename: string;
-    page: number;
-  }>;
+  citations?: Citation[];
 }
 
 interface MessageListProps {
@@ -22,6 +26,7 @@ interface MessageListProps {
   isStreaming?: boolean;
   agentStatus?: string;
   onFeedback?: (messageId: string, type: "like" | "dislike") => void;
+  onCitationClick?: (citation: Citation) => void;
 }
 
 export function MessageList({
@@ -31,6 +36,7 @@ export function MessageList({
   isStreaming = false,
   agentStatus = "",
   onFeedback,
+  onCitationClick,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -83,34 +89,35 @@ export function MessageList({
 
                         <div className="grid gap-2">
                           {message.citations.map((citation, citationIndex) => (
-                            <div
+                            <button
                               key={citationIndex}
-                              className="flex items-center gap-3 bg-[#252525] hover:bg-[#2a2a2a] rounded-lg px-3 py-2 border border-gray-700 hover:border-gray-600 transition-colors"
+                              onClick={() => onCitationClick?.(citation)}
+                              className="flex items-center gap-3 bg-[#252525] hover:bg-[#2a2a2a] rounded-lg px-3 py-2 border border-gray-700 hover:border-gray-600 transition-colors text-left w-full cursor-pointer group/citation"
                             >
                               {/* Document Icon */}
-                              <div className="flex-shrink-0 w-7 h-7 bg-[#2a2a2a] border border-gray-600 rounded-md flex items-center justify-center">
+                              <div className="flex-shrink-0 w-7 h-7 bg-[#2a2a2a] border border-gray-600 rounded-md flex items-center justify-center group-hover/citation:bg-[#303030] transition-colors">
                                 <FileText size={12} className="text-gray-400" />
                               </div>
 
                               {/* Citation Info */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-200 truncate">
+                                <p className="text-sm font-medium text-gray-200 truncate group-hover/citation:text-white transition-colors">
                                   {citation.filename}
                                 </p>
                                 <p className="text-xs text-gray-400 mt-0.5">
-                                  Page {citation.page}
+                                  Page {citation.page} • Click to view chunk
                                 </p>
                               </div>
 
                               {/* Page Number Badge */}
                               <div className="flex-shrink-0">
-                                <div className="w-6 h-6 bg-[#2a2a2a] border border-gray-600 rounded-md flex items-center justify-center">
+                                <div className="w-6 h-6 bg-[#2a2a2a] border border-gray-600 rounded-md flex items-center justify-center group-hover/citation:bg-[#303030] transition-colors">
                                   <span className="text-xs font-medium text-gray-400">
                                     {citation.page}
                                   </span>
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </div>
