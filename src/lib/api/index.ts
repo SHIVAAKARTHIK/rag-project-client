@@ -84,6 +84,38 @@ export const apiClient = {
 
     return response.json();
   },
+
+  // NEW: Stream method for SSE (Server-Sent Events)
+  // Returns raw response for streaming (doesn't call .json())
+  stream: async (
+    endpoint: string, 
+    data: unknown, 
+    token?: string | null,
+    signal?: AbortSignal
+  ) => {
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data),
+      signal, // For aborting the stream
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+
+    // Return raw response for streaming (not .json())
+    return response;
+  },
+
   uploadToS3: async (url: string, file: File) => {
     const response = await fetch(url, {
       method: "PUT",

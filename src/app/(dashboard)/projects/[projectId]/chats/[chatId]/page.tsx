@@ -10,6 +10,7 @@ import { MessageFeedbackModal } from "@/components/chat/MessageFeedbackModel";
 import toast from "react-hot-toast";
 import { NotFound } from "@/components/ui/NotFound";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useStreamingChat } from "@/hooks/useStreamingChat";
 
 interface Citation {
   chunk_id: string;
@@ -46,7 +47,6 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
   const [isLoadingChatData, setIsLoadingChatData] = useState(true);
 
   const [sendMessageError, setSendMessageError] = useState<string | null>(null);
-  const [isMessageSending, setIsMessageSending] = useState(false);
 
   const [feedbackModal, setFeedbackModal] = useState<{
     messageId: string;
@@ -67,6 +67,15 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
   });
 
   const { getToken, userId } = useAuth();
+
+  // Streaming hook
+  const {
+    sendMessage: sendStreamingMessage,
+    isStreaming,
+    streamingContent,
+    status: agentStatus,
+    abortStream,
+  } = useStreamingChat({ projectId, chatId });
 
   // Handle citation click
   const handleCitationClick = (citation: Citation) => {
@@ -95,15 +104,13 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
     });
   };
 
-  // Send message function
+  // Send message with streaming
   const handleSendMessage = async (content: string) => {
     try {
       setSendMessageError(null);
-      setIsMessageSending(true);
 
       if (!currentChatData || !userId) {
         setSendMessageError("Chat or user not found");
-        setIsMessageSending(false);
         return;
       }
 
@@ -127,32 +134,27 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
         };
       });
 
-      // Send POST request to create message
-      const token = await getToken();
-      const response = await apiClient.post(
-        `/api/projects/${projectId}/chats/${currentChatData.id}/messages`,
-        { content },
-        token
-      );
+      // Use streaming to send message
+      const result = await sendStreamingMessage(content);
 
-      // Replace optimistic message with real messages from server
-      const { userMessage, aiMessage } = response.data;
+      if (result) {
+        // Replace optimistic message with real messages from server
+        setCurrentChatData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            messages: [
+              ...prev.messages.filter(
+                (msg) => msg.id !== optimisticUserMessage.id
+              ),
+              result.userMessage,
+              result.aiMessage,
+            ],
+          };
+        });
 
-      setCurrentChatData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          messages: [
-            ...prev.messages.filter(
-              (msg) => msg.id !== optimisticUserMessage.id
-            ),
-            userMessage,
-            aiMessage,
-          ],
-        };
-      });
-
-      toast.success("Message sent");
+        toast.success("Message sent");
+      }
     } catch (err) {
       setSendMessageError("Failed to send message");
       toast.error("Failed to send message");
@@ -165,8 +167,6 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
           messages: prev.messages.filter((msg) => !msg.id.startsWith("temp-")),
         };
       });
-    } finally {
-      setIsMessageSending(false);
     }
   };
 
@@ -242,9 +242,12 @@ export default function ProjectChatPage({ params }: ProjectChatPageProps) {
         onSendMessage={handleSendMessage}
         onFeedback={handleFeedbackOpen}
         onCitationClick={handleCitationClick}
-        isLoading={isMessageSending}
+        isLoading={isStreaming}
         error={sendMessageError}
         onDismissError={() => setSendMessageError(null)}
+        isStreaming={isStreaming}
+        streamingMessage={streamingContent}
+        agentStatus={agentStatus}
       />
       
       {/* Feedback Modal */}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { MessageItem } from "./MessageItem";
 import { FileText, Loader2 } from "lucide-react";
+import { AgentStatus, AgentStatusDetailed } from "./AgentStatus";  // ✅ ADD THIS
 
 interface Citation {
   chunk_id: string;
@@ -46,7 +47,7 @@ export function MessageList({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingMessage]);
+  }, [messages, streamingMessage, agentStatus]);  // ✅ Added agentStatus
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#1a1a1a]">
@@ -126,38 +127,42 @@ export function MessageList({
               </div>
             ))}
 
-            {/* Streaming Message */}
-            {isStreaming && streamingMessage && (
-              <div className="group">
-                <div className="flex justify-start">
-                  <div className="bg-[#202020] border border-gray-800 rounded-lg p-4 max-w-[85%]">
-                    <p className="whitespace-pre-wrap text-gray-200 leading-relaxed text-sm">
-                      {streamingMessage}
-                    </p>
+            {/* ✅ NEW: Streaming with Status */}
+            {isStreaming && (
+              <div className="space-y-4">
+                {/* Show detailed status when no content yet */}
+                {agentStatus && !streamingMessage && (
+                  <div className="flex justify-start">
+                    <AgentStatusDetailed status={agentStatus} />
+                  </div>
+                )}
 
-                    {/* Typing Indicator */}
-                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-800">
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
+                {/* Show streaming content with mini status */}
+                {streamingMessage && (
+                  <div className="group space-y-3">
+                    {/* Mini status indicator while generating */}
+                    {agentStatus && (
+                      <div className="flex justify-start">
+                        <AgentStatus status={agentStatus} />
                       </div>
-                      <span className="text-xs text-gray-400 ml-2">
-                        AI is thinking...
-                      </span>
+                    )}
+
+                    {/* Streaming message bubble */}
+                    <div className="flex justify-start">
+                      <div className="bg-[#202020] border border-gray-800 rounded-lg p-4 max-w-[85%]">
+                        <p className="whitespace-pre-wrap text-gray-200 leading-relaxed text-sm">
+                          {streamingMessage}
+                          {/* Typing cursor */}
+                          <span className="inline-block w-2 h-4 bg-blue-400 ml-1 animate-pulse rounded-sm" />
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* Loading State - with dynamic status */}
+            {/* Loading State (fallback when not streaming) */}
             {isLoading && !isStreaming && (
               <div className="flex justify-start">
                 <div className="bg-[#202020] border border-gray-800 rounded-lg p-4">
