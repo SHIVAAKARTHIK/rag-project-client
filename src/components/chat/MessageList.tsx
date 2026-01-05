@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import { MessageItem } from "./MessageItem";
 import { FileText, Loader2 } from "lucide-react";
-import { AgentStatus, AgentStatusDetailed } from "./AgentStatus";  // ✅ ADD THIS
-
+import { AgentStatus, AgentStatusDetailed } from "./AgentStatus";  
 interface Citation {
   chunk_id: string;
   document_id: string;
